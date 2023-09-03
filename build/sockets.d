@@ -1,33 +1,4 @@
 sockets.o: /home/aiden/Documents/git/3ds/gemini/source/sockets.c \
- /opt/devkitpro//libctru/include/sys/socket.h \
- /opt/devkitpro//libctru/include/netinet/in.h \
- /opt/devkitpro//libctru/include/arpa/inet.h \
- /opt/devkitpro//libctru/include/netdb.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ssl.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/config.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/check_config.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/bignum.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ecp.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ssl_ciphersuites.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/pk.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/md.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/platform_util.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/platform_time.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/rsa.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ecdsa.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/cipher.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crt.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/x509.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/asn1.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crl.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/dhm.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ecdh.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/entropy.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/sha512.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/ctr_drbg.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/aes.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/debug.h \
- /opt/devkitpro//portlibs/3ds/include/mbedtls/net_sockets.h \
  /opt/devkitpro//libctru/include/3ds.h \
  /opt/devkitpro//libctru/include/3ds/types.h \
  /opt/devkitpro//libctru/include/3ds/result.h \
@@ -85,6 +56,8 @@ sockets.o: /home/aiden/Documents/git/3ds/gemini/source/sockets.c \
  /opt/devkitpro//libctru/include/3ds/services/pxidev.h \
  /opt/devkitpro//libctru/include/3ds/services/pxipm.h \
  /opt/devkitpro//libctru/include/3ds/services/soc.h \
+ /opt/devkitpro//libctru/include/netinet/in.h \
+ /opt/devkitpro//libctru/include/sys/socket.h \
  /opt/devkitpro//libctru/include/3ds/services/mic.h \
  /opt/devkitpro//libctru/include/3ds/services/mvd.h \
  /opt/devkitpro//libctru/include/3ds/services/nfc.h \
@@ -109,36 +82,35 @@ sockets.o: /home/aiden/Documents/git/3ds/gemini/source/sockets.c \
  /opt/devkitpro//libctru/include/3ds/romfs.h \
  /opt/devkitpro//libctru/include/3ds/font.h \
  /opt/devkitpro//libctru/include/3ds/gdbhio_dev.h \
- /opt/devkitpro//libctru/include/3ds/3dslink.h
-/opt/devkitpro//libctru/include/sys/socket.h:
-/opt/devkitpro//libctru/include/netinet/in.h:
-/opt/devkitpro//libctru/include/arpa/inet.h:
-/opt/devkitpro//libctru/include/netdb.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ssl.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/config.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/check_config.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/bignum.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ecp.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ssl_ciphersuites.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/pk.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/md.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/platform_util.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/platform_time.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/rsa.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ecdsa.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/cipher.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crt.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/x509.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/asn1.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crl.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/dhm.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ecdh.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/entropy.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/sha512.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/ctr_drbg.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/aes.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/debug.h:
-/opt/devkitpro//portlibs/3ds/include/mbedtls/net_sockets.h:
+ /opt/devkitpro//libctru/include/3ds/3dslink.h \
+ /opt/devkitpro//libctru/include/arpa/inet.h \
+ /opt/devkitpro//libctru/include/netdb.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/net.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/config.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/check_config.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/net_sockets.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ssl.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/bignum.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ecp.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ssl_ciphersuites.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/pk.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/md.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/platform_util.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/platform_time.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/rsa.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ecdsa.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/cipher.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crt.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/x509.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/asn1.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crl.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/dhm.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ecdh.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/entropy.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/sha512.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/ctr_drbg.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/aes.h \
+ /opt/devkitpro//portlibs/3ds/include/mbedtls/debug.h
 /opt/devkitpro//libctru/include/3ds.h:
 /opt/devkitpro//libctru/include/3ds/types.h:
 /opt/devkitpro//libctru/include/3ds/result.h:
@@ -196,6 +168,8 @@ sockets.o: /home/aiden/Documents/git/3ds/gemini/source/sockets.c \
 /opt/devkitpro//libctru/include/3ds/services/pxidev.h:
 /opt/devkitpro//libctru/include/3ds/services/pxipm.h:
 /opt/devkitpro//libctru/include/3ds/services/soc.h:
+/opt/devkitpro//libctru/include/netinet/in.h:
+/opt/devkitpro//libctru/include/sys/socket.h:
 /opt/devkitpro//libctru/include/3ds/services/mic.h:
 /opt/devkitpro//libctru/include/3ds/services/mvd.h:
 /opt/devkitpro//libctru/include/3ds/services/nfc.h:
@@ -221,3 +195,31 @@ sockets.o: /home/aiden/Documents/git/3ds/gemini/source/sockets.c \
 /opt/devkitpro//libctru/include/3ds/font.h:
 /opt/devkitpro//libctru/include/3ds/gdbhio_dev.h:
 /opt/devkitpro//libctru/include/3ds/3dslink.h:
+/opt/devkitpro//libctru/include/arpa/inet.h:
+/opt/devkitpro//libctru/include/netdb.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/net.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/config.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/check_config.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/net_sockets.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ssl.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/bignum.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ecp.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ssl_ciphersuites.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/pk.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/md.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/platform_util.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/platform_time.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/rsa.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ecdsa.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/cipher.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crt.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/x509.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/asn1.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/x509_crl.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/dhm.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ecdh.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/entropy.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/sha512.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/ctr_drbg.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/aes.h:
+/opt/devkitpro//portlibs/3ds/include/mbedtls/debug.h:
