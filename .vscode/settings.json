@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "curl.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "string": "c",
+        "ssl.h": "c",
+        "format": "c"
+    }
+}
