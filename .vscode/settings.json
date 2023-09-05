@@ -5,6 +5,7 @@
         "string.h": "c",
         "string": "c",
         "ssl.h": "c",
-        "format": "c"
+        "format": "c",
+        "ctr_drbg.h": "c"
     }
 }

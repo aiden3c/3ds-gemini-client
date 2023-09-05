@@ -48,7 +48,8 @@ ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
 CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
-			$(ARCH)
+			$(ARCH) \
+			-I/opt/devkitpro/portlibs/3ds/include/mbedtls/ -DMBEDTLS_CONFIG_FILE='<config.h>'
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__
 
@@ -57,7 +58,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lctru -lmbedtls -lmbedx509 -lmbedcrypto
+LIBS	:= -lmbedtls -lmbedx509 -lmbedcrypto -lctru
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
