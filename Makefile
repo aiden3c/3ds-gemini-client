@@ -46,10 +46,9 @@ GFXBUILD	:=	$(BUILD)
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-g -Wall -O2 -mword-relocations \
+CFLAGS	:=	-g -Wall -mword-relocations \
 			-ffunction-sections \
-			$(ARCH) \
-			-I/opt/devkitpro/portlibs/3ds/include/mbedtls/ -DMBEDTLS_CONFIG_FILE='<config.h>'
+			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__
 
