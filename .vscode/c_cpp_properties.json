@@ -3,7 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/opt/devkitpro/libctru/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

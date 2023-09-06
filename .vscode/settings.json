@@ -6,6 +6,8 @@
         "string": "c",
         "ssl.h": "c",
         "format": "c",
-        "ctr_drbg.h": "c"
+        "ctr_drbg.h": "c",
+        "netdb.h": "c",
+        "entropy.h": "c"
     }
 }
