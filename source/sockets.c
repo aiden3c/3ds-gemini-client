@@ -27,9 +27,13 @@
 
 #define TOP_SCREEN_WIDTH 400
 #define TOP_SCREEN_HEIGHT 240
+#define TOP_CHAR_WIDTH 56
+#define TOP_CHAR_HEIGHT 30
 
 #define BOTTOM_SCREEN_WIDTH 320
 #define BOTTOM_SCREEN_HEIGHT 240
+
+#define MAX_PAGE_SIZE 1024 * 16
 
 
 #define MAX_UI_BUTTONS 64 //Arbitrary
@@ -56,7 +60,7 @@ typedef struct {
     u32 background;
     u32 border;
     u32 color;
-    char text[64];
+    char text[15];
     enum Action action;
 } UiButton;
 
@@ -72,8 +76,55 @@ static void my_debug( void *ctx, int level, const char *file, int line, const ch
     printf( str );
 }
 
-char* getGeminiPage(char* hostname, char* path, char* port) {
+//Solid recs only for our UI for now
+void drawRectangleWithPadding(int x, int y, int z, int w, int h, int padding, u32 background, u32 border) {
+    C2D_DrawRectangle(x-padding, y-padding, z, w+padding, h+padding, border, border, border, border);
+    C2D_DrawRectangle(x+(padding / 2), y + (padding / 2), z + 1, w - padding, h - padding, background, background, background, background);
+}
+
+void drawText(int x, int y, int z, float scale, u32 color, char* text, int flags, C2D_Font font) {
+    C2D_Text drawText;
+    C2D_TextBuf dynamicBuffer = C2D_TextBufNew(MAX_PAGE_SIZE);
+    C2D_TextBufClear(dynamicBuffer);
+    C2D_TextFontParse( &drawText, font, dynamicBuffer, text );
+    C2D_TextOptimize( &drawText );
+
+    C2D_DrawText( &drawText, flags, x, y, z, scale, scale, color, TOP_SCREEN_WIDTH - 9.0 );
+
+    C2D_TextBufDelete(dynamicBuffer);
+}
+
+void drawButton(UiButton button, C2D_Font font) {
+    int x = button.x;
+    int y = button.y;
+    int z = button.z;
+    int w = button.w;
+    int h = button.h;
+
+    int padding = button.padding;
+    u32 background = button.background;
+    u32 border = button.border;
+    u32 color = button.color;
+    char *text = button.text;
+
+    C2D_Text drawText;
+    C2D_TextBuf dynamicBuffer = C2D_TextBufNew(4096);
+    C2D_TextBufClear(dynamicBuffer);
+    C2D_TextFontParse(&drawText, font, dynamicBuffer, text);
+    C2D_TextOptimize(&drawText);
+    C2D_DrawRectangle(x, y, z - 1, w, h, border, border, border, border);
+    C2D_DrawRectangle(x+(padding / 2), y + (padding / 2), z, w-padding, h-padding, background, background, background, background);
+    float scale = 0.8;
+    C2D_DrawText(&drawText, C2D_WithColor, x + padding, y + ( (1-scale) * padding ), z, scale, scale, color);
+    C2D_TextBufDelete(dynamicBuffer);
+}
+
+void getGeminiPage(char* hostname, char* path, char* port, char response_body[MAX_PAGE_SIZE]) {
+    u32 clrIced  = C2D_Color32(0xFB, 0xFC, 0xFC, 0xFF);
+    u32 clrClear = C2D_Color32(0x04, 0x0D, 0x13, 0xFF);
     int ret;
+    memset(response_body, 0, MAX_PAGE_SIZE);
+
     //Set up Mbed TLS
     mbedtls_net_context server_fd;
     mbedtls_ssl_context ssl;
@@ -105,9 +156,15 @@ char* getGeminiPage(char* hostname, char* path, char* port) {
     mbedtls_ssl_conf_rng( &conf, mbedtls_ctr_drbg_random, &ctr_drbg );
     mbedtls_ssl_conf_dbg( &conf, my_debug, stdout );
 
-    printf("Connecting...\n");
     if( ( ret = mbedtls_net_connect( &server_fd, hostname, port, MBEDTLS_NET_PROTO_TCP ) ) != 0 ) {
-        failExit("Failed to connect!%i",ret);
+        memcpy(response_body, "Failed to connect!", MAX_PAGE_SIZE);
+        mbedtls_x509_crt_free(&cacert);
+        mbedtls_ssl_config_free(&conf);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_entropy_free( &entropy );
+        mbedtls_net_free( &server_fd );
+        return;
     }
 
     printf("Setting hostname\n");
@@ -136,25 +193,20 @@ char* getGeminiPage(char* hostname, char* path, char* port) {
 
     char response[128];
     ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
-    printf(response);
     printf("%i bytes read\n", ret);
 
-
-    char body[1024 * 16];
-    memset(body, 0, sizeof body);
-    ret = mbedtls_ssl_read( &ssl, body, sizeof(body) );
-    printf(body);
-
+    mbedtls_ssl_read( &ssl, response_body, MAX_PAGE_SIZE );
+    
     mbedtls_x509_crt_free(&cacert);
     mbedtls_ssl_config_free(&conf);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_ssl_free(&ssl);
     mbedtls_entropy_free( &entropy );
     mbedtls_net_free( &server_fd );
-    return body;
+    return;
 }
 
-char* getKeyboardInput() {
+void getKeyboardInput(char output[1024]) {
     bool in_keyboard = true;
     static SwkbdState swkbd;
     static char keyboardBuffer[1024];
@@ -170,10 +222,11 @@ char* getKeyboardInput() {
 
     if(in_keyboard) {
         if(button != SWKBD_BUTTON_NONE) {
-            return keyboardBuffer;
+            memset(output, 0, 1024);
+            memcpy( output, keyboardBuffer, 1024 );
         }
     }
-    return "";
+    return;
 }
 
 void pressAtocontinue() {
@@ -187,59 +240,33 @@ void pressAtocontinue() {
     }
 }
 
-//Solid recs only for our UI for now
-void drawRectangleWithPadding(int x, int y, int z, int w, int h, int padding, u32 background, u32 border) {
-    C2D_DrawRectangle(x-padding, y-padding, z, w+padding, h+padding, border, border, border, border);
-    C2D_DrawRectangle(x+(padding / 2), y + (padding / 2), z + 1, w - padding, h - padding, background, background, background, background);
-}
-
-void drawButton(UiButton button) {
-    int x = button.x;
-    int y = button.y;
-    int z = button.z;
-    int w = button.w;
-    int h = button.h;
-
-    int padding = button.padding;
-    u32 background = button.background;
-    u32 border = button.border;
-    u32 color = button.color;
-    char *text = button.text;
-
-    C2D_Text drawText;
-    C2D_TextBuf dynamicBuffer = C2D_TextBufNew(4096);
-    C2D_TextBufClear(dynamicBuffer);
-    C2D_TextParse(&drawText, dynamicBuffer, text);
-    C2D_TextOptimize(&drawText);
-    C2D_DrawRectangle(x, y, z - 1, w, h, border, border, border, border);
-    C2D_DrawRectangle(x+(padding / 2), y + (padding / 2), z, w-padding, h-padding, background, background, background, background);
-    float scale = 0.8;
-    C2D_DrawText(&drawText, C2D_WithColor, x + padding, y + ( (1-scale) * padding ), z, scale, scale, color);
-    C2D_TextBufDelete(dynamicBuffer);
-}
-
 UiButton uiButtons[MAX_UI_BUTTONS];
-
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client";
+char current_url[1024] = "Enter URL";
 int main() {
     int ret;
+    int scroll;
+    romfsInit();
+    cfguInit();
     gfxInitDefault();
     atexit(gfxExit);
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
+    C3D_RenderTarget* top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 
-    consoleInit(GFX_TOP, NULL);
     C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+    C2D_Font font = C2D_FontLoad("romfs:/ffbold.bcfnt");
+    
 
     u32 clrWhite = C2D_Color32(0xFF, 0xFF, 0xFF, 0xFF);
 	u32 clrGreen = C2D_Color32(0x00, 0xFF, 0x00, 0xFF);
 	u32 clrRed   = C2D_Color32(0xFF, 0x00, 0x00, 0xFF);
 	u32 clrBlue  = C2D_Color32(0x00, 0x00, 0xFF, 0xFF);
 
+    u32 clrIced  = C2D_Color32(0xFB, 0xFC, 0xFC, 0xFF);
+
     u32 clrClear = C2D_Color32(0x04, 0x0D, 0x13, 0xFF);
-
-
-    printf("3DS Gemini Client\n");
     
     SOC_buffer = (u32 *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
     if (SOC_buffer == NULL) {
@@ -251,28 +278,37 @@ int main() {
     atexit(socShutdown);
     atexit(C2D_Fini);
     atexit(C3D_Fini);
-
+    UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE };
+    UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Exit", EXIT };
+    uiButtons[0] = urlButton;
+    uiButtons[1] = exitButton;
     while (aptMainLoop())
     {
         hidScanInput();
         u32 kDown = hidKeysDown();
+        u32 kHeld = hidKeysHeld();
 		if (kDown & KEY_START)
             break; //TODO replace this with a proper menu screen
         
+        //Process button inputs
+        if (kHeld & KEY_DOWN) {
+            scroll --;
+        }
+        if (kHeld & KEY_UP) {
+            scroll ++;
+        }
+
         touchPosition touch;
         hidTouchRead( &touch );
 
-        //Render UI
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C2D_TargetClear(top, clrClear);
+        C2D_SceneBegin(top);
+        drawText(6, 6 + scroll, 0, .6, clrIced, current_text, C2D_WithColor | C2D_WordWrap, font);
+
+        //Render UI
         C2D_TargetClear(bottom, clrClear);
         C2D_SceneBegin(bottom);
-
-        //drawRectangleWithPadding(0, 0, 0, 160, 24, 6, clrClear, clrWhite );
-        //drawButton(0, 0, 0, 160, 24, 6, clrBlue, clrWhite, clrWhite, "Test!");
-        UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrBlue, clrWhite, clrWhite, "Enter URL", NEW_PAGE };
-        uiButtons[0] = urlButton;
-        UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrGreen, "Exit", EXIT };
-        uiButtons[1] = exitButton;
 
         int i;
         enum Action uiAction = NONE;
@@ -281,29 +317,27 @@ int main() {
             if( (touch.px > button.x) && (touch.py > button.y && touch.py < button.h ) ) {
                 uiAction = button.action;
             }
-            drawButton(button);
+            drawButton(button, font);
         }
 
         if(uiAction == NEW_PAGE) {
-            char* url = getKeyboardInput();
-            printf(getGeminiPage(url, "/", "1965"));
+            memset(current_text, 0, sizeof(current_text));
+            getKeyboardInput(&current_url);
+
+            memset(uiButtons[0].text, 0, sizeof(urlButton.text));
+            memcpy(uiButtons[0].text, current_url, 14);
+            
+            getGeminiPage(current_url, "/", "1965", &current_text);
+            scroll = 0;
         }
         else if(uiAction == EXIT) {
             exit(0);
         }
-        else if(uiAction != NONE) {
-            printf("%i\n", uiAction);
-        }
 
         C3D_FrameEnd(0);
         
-        //Check to see if we've pressed any UI buttons
-
-
-        //printf(getGeminiPage(getKeyboardInput(), "/", "1965"));
-        //pressAtocontinue();
     }
-
+    C2D_FontFree(font);
     exit(0);
 }
 
