@@ -50,7 +50,8 @@ enum Action {
     EXIT,
     NEW_PAGE,
     NEW_TAB,
-    CLOSE_TAB
+    CLOSE_TAB,
+    OPEN_LINK
 };
 
 enum LineType {
@@ -58,6 +59,7 @@ enum LineType {
     LINE_H1,
     LINE_H2,
     LINE_H3,
+    LINE_LINK,
 };
 
 typedef struct {
@@ -304,8 +306,10 @@ Line* parseGemtext(const char* text, int* total) {
         const char* h1_token = "#";
         const char* h2_token = "##";
         const char* h3_token = "###";
+        const char* link_token = "=>";
         
         if (textline) {
+            //Remove preceding whitespace, I dont think this is necessary but hey
             while (isspace(*textline)) {
                 textline++;
             }
@@ -319,6 +323,9 @@ Line* parseGemtext(const char* text, int* total) {
             } else if (strncmp(textline, h1_token, strlen(h1_token)) == 0) {
                 type = LINE_H1;
                 textline += strlen(h1_token);
+            } else if (strncmp(textline, link_token, strlen(link_token)) == 0) {
+                type = LINE_LINK;
+                textline += strlen(link_token);
             }
 
             //Remove any spaces after declaration of special functions
@@ -388,10 +395,13 @@ void parseUrl(const char *url, char *host, char *port, char *path) {
 UiButton uiButtons[MAX_UI_BUTTONS];
 char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n";
 char current_url[1024] = "Enter URL";
+Link links[128];
 // Create a URL handle
 int main() {
     int ret;
     int scroll = 0;
+    int linkCount = 0;
+    int currentUiButtons = 0;
     romfsInit();
     cfguInit();
     gfxInitDefault();
@@ -411,7 +421,7 @@ int main() {
 	u32 clrBlue  = C2D_Color32(0x00, 0x00, 0xFF, 0xFF);
 
     u32 clrIced  = C2D_Color32(0xFB, 0xFC, 0xFC, 0xFF);
-
+    u32 clrLink  = C2D_Color32(0xFF, 0xF4, 0xD2, 0xFF);
     u32 clrClear = C2D_Color32(0x04, 0x0D, 0x13, 0xFF);
     
     SOC_buffer = (u32 *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
@@ -426,10 +436,11 @@ int main() {
     atexit(C3D_Fini);
     UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE };
     UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Exit", EXIT };
-    uiButtons[0] = urlButton;
-    uiButtons[1] = exitButton;
     while (aptMainLoop())
     {
+        currentUiButtons = 0;
+        uiButtons[currentUiButtons++] = urlButton;
+        uiButtons[currentUiButtons++] = exitButton;
         hidScanInput();
         u32 kDown = hidKeysDown();
         u32 kHeld = hidKeysHeld();
@@ -453,6 +464,7 @@ int main() {
 
         int lineCount = 0;
         Line *lines = parseGemtext(current_text, &lineCount);
+        Link links[128];
         int i;
         int offset = 0;
         for (i = 0; i < lineCount; i++ ) {
@@ -468,6 +480,21 @@ int main() {
             } else if (lines[i].type == LINE_H3) {
                 drawText(6, 6 + scroll + offset, 0, .7, clrBlue, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
                 offset += 6;
+            } else if (lines[i].type == LINE_LINK) {
+                drawText(6, 6 + scroll + offset + 3, 0, .6, clrLink, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                char* linktext = malloc(strlen(lines[i].text) + 1);
+                char linkbuttontext[14];
+                strcpy(linktext, lines[i].text);
+                Link link = { strtok(linktext, " "), strtok(NULL, "") };
+                free(linktext);
+                if (linkCount < 128) {
+                    UiButton linkbutton = { 0, 16 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, 2*(BOTTOM_SCREEN_HEIGHT/10), 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK };
+                    uiButtons[currentUiButtons++] = linkbutton;
+                    memset(uiButtons[currentUiButtons-1].text, 0, sizeof(urlButton.text));
+                    memcpy(uiButtons[currentUiButtons-1].text, lines[i].text, 14);
+                    links[linkCount++] = link; // Add the link to the array and increment the counter
+                }
+                offset += 3;
             }
             
 
@@ -482,7 +509,7 @@ int main() {
         C2D_SceneBegin(bottom);
 
         enum Action uiAction = NONE;
-        for(i = 0; i < 2; i++) {
+        for(i = 0; i < currentUiButtons; i++) {
             UiButton button = uiButtons[i];
             if( (touch.px > button.x) && (touch.py > button.y && touch.py < button.h ) ) {
                 uiAction = button.action;
@@ -506,8 +533,8 @@ int main() {
             
 
             parseUrl(current_url, &host, &port, &path);
-
             getGeminiPage(host, path, port, &current_text);
+
             scroll = 0;
         }
         else if(uiAction == EXIT) {
@@ -516,6 +543,11 @@ int main() {
 
         C3D_FrameEnd(0);
         
+        //Clean up dynamic buttons (links) RMEMBER IF MORE EXIST YOU HAVE YOU STACK AND REMOVE IN ORDER
+        while(linkCount > 0) {
+            linkCount--;
+            uiButtons[linkCount] = uiButtons[linkCount + 1];
+        }
     }
     C2D_FontFree(font);
     exit(0);

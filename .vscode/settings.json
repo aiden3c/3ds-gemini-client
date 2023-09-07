@@ -10,6 +10,7 @@
         "netdb.h": "c",
         "entropy.h": "c",
         "cmath": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "chrono": "c"
     }
 }
