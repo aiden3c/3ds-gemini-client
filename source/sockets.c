@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <ctype.h>
 
 
 #include <fcntl.h>
@@ -51,7 +52,10 @@ enum Action {
 };
 
 enum LineType {
-    LINE_PLAIN
+    LINE_PLAIN,
+    LINE_H1,
+    LINE_H2,
+    LINE_H3,
 };
 
 typedef struct {
@@ -204,7 +208,8 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
     ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
     printf("%i bytes read\n", ret);
 
-    mbedtls_ssl_read( &ssl, response_body, MAX_PAGE_SIZE );
+    memcpy(response_body, response, strlen(response));
+    mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
     
     mbedtls_x509_crt_free(&cacert);
     mbedtls_ssl_config_free(&conf);
@@ -257,12 +262,46 @@ Line* parseGemtext(const char* text, int* total) {
     char *textline = strtok(text_copy, delimiter);
 
     while (textline != NULL) {
+        int type = LINE_PLAIN;
+        // Replace unconventional whitespace with normal spaces
+        for (int i = 0; textline[i]; i++) {
+            if (isspace((unsigned char)textline[i]) && textline[i] != '\n') {
+                textline[i] = ' ';
+            }
+        }
+
+        const char* h1_token = "#";
+        const char* h2_token = "##";
+        const char* h3_token = "###";
+        
+        if (textline) {
+            while (isspace(*textline)) {
+                textline++;
+            }
+            
+            if (strncmp(textline, h3_token, strlen(h3_token)) == 0) {
+                type = LINE_H3;
+                textline += strlen(h3_token);
+            } else if (strncmp(textline, h2_token, strlen(h2_token)) == 0) {
+                type = LINE_H2;
+                textline += strlen(h2_token);
+            } else if (strncmp(textline, h1_token, strlen(h1_token)) == 0) {
+                type = LINE_H1;
+                textline += strlen(h1_token);
+            }
+
+            //Remove any spaces after declaration of special functions
+            while (isspace(*textline)) {
+                textline++;
+            }
+        }
+
         // Allocate memory for the Line structure
         lines = realloc(lines, (*total + 1) * sizeof(Line));
 
         // Initialize the Line structure and copy the textline
         lines[*total].text = strdup(textline); // strdup allocates memory for the text
-        lines[*total].type = LINE_PLAIN;
+        lines[*total].type = type;
 
         (*total)++; // Increment the total count
 
@@ -273,12 +312,13 @@ Line* parseGemtext(const char* text, int* total) {
     return lines;
 }
 
+
 UiButton uiButtons[MAX_UI_BUTTONS];
 char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n";
 char current_url[1024] = "Enter URL";
 int main() {
     int ret;
-    int scroll;
+    int scroll = 0;
     romfsInit();
     cfguInit();
     gfxInitDefault();
@@ -343,8 +383,23 @@ int main() {
         int i;
         int offset = 0;
         for (i = 0; i < lineCount; i++ ) {
-            drawText(6, 6 + scroll + offset, 0, .6, clrIced, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-            for (int j = strlen(lines[i].text); j > 0; j -= 56 ) {
+            
+            if(lines[i].type == LINE_PLAIN) {
+                drawText(6, 6 + scroll + offset, 0, .6, clrIced, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+            } else if (lines[i].type == LINE_H1) {
+                drawText(6, 6 + scroll + offset, 0, 1, clrGreen, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                offset += 12;
+            } else if (lines[i].type == LINE_H2) {
+                drawText(6, 6 + scroll + offset, 0, .8, clrRed, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                offset += 9;
+            } else if (lines[i].type == LINE_H3) {
+                drawText(6, 6 + scroll + offset, 0, .7, clrBlue, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                offset += 6;
+            }
+            
+
+            
+            for (int j = strlen(lines[i].text); j >= 0; j -= 56 ) {
                 offset += 24; //Good offset, looks nice and groups WordWrap lines together nicely
             }
         }
