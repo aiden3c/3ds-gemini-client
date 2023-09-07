@@ -8,6 +8,7 @@
         "format": "c",
         "ctr_drbg.h": "c",
         "netdb.h": "c",
-        "entropy.h": "c"
+        "entropy.h": "c",
+        "cmath": "c"
     }
 }

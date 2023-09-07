@@ -50,6 +50,15 @@ enum Action {
     CLOSE_TAB
 };
 
+enum LineType {
+    LINE_PLAIN
+};
+
+typedef struct {
+    char* text;
+    enum LineType type;
+} Line;
+
 typedef struct {
     int x;
     int y;
@@ -240,8 +249,32 @@ void pressAtocontinue() {
     }
 }
 
+Line* parseGemtext(const char* text, int* total) {
+    Line* lines = NULL;
+    const char* delimiter = "\n";
+    char* text_copy = strdup(text); // Make a copy of the input text
+
+    char *textline = strtok(text_copy, delimiter);
+
+    while (textline != NULL) {
+        // Allocate memory for the Line structure
+        lines = realloc(lines, (*total + 1) * sizeof(Line));
+
+        // Initialize the Line structure and copy the textline
+        lines[*total].text = strdup(textline); // strdup allocates memory for the text
+        lines[*total].type = LINE_PLAIN;
+
+        (*total)++; // Increment the total count
+
+        textline = strtok(NULL, delimiter);
+    }
+
+    free(text_copy); // Free the copied text
+    return lines;
+}
+
 UiButton uiButtons[MAX_UI_BUTTONS];
-char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client";
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n";
 char current_url[1024] = "Enter URL";
 int main() {
     int ret;
@@ -292,10 +325,10 @@ int main() {
         
         //Process button inputs
         if (kHeld & KEY_DOWN) {
-            scroll --;
+            scroll -= 3;
         }
         if (kHeld & KEY_UP) {
-            scroll ++;
+            scroll += 3;
         }
 
         touchPosition touch;
@@ -304,13 +337,22 @@ int main() {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         C2D_TargetClear(top, clrClear);
         C2D_SceneBegin(top);
-        drawText(6, 6 + scroll, 0, .6, clrIced, current_text, C2D_WithColor | C2D_WordWrap, font);
+
+        int lineCount = 0;
+        Line *lines = parseGemtext(current_text, &lineCount);
+        int i;
+        int offset = 0;
+        for (i = 0; i < lineCount; i++ ) {
+            drawText(6, 6 + scroll + offset, 0, .6, clrIced, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+            for (int j = strlen(lines[i].text); j > 0; j -= 56 ) {
+                offset += 24; //Good offset, looks nice and groups WordWrap lines together nicely
+            }
+        }
 
         //Render UI
         C2D_TargetClear(bottom, clrClear);
         C2D_SceneBegin(bottom);
 
-        int i;
         enum Action uiAction = NONE;
         for(i = 0; i < 2; i++) {
             UiButton button = uiButtons[i];
