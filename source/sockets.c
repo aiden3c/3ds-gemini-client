@@ -22,6 +22,8 @@
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/debug.h>
 
+#include <curl/curl.h>
+
 #include <citro2d.h>
 
 #include <3ds.h>
@@ -57,6 +59,11 @@ enum LineType {
     LINE_H2,
     LINE_H3,
 };
+
+typedef struct {
+    char* path;
+    char* caption;
+} Link;
 
 typedef struct {
     char* text;
@@ -168,6 +175,7 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
     mbedtls_ssl_conf_authmode( &conf, MBEDTLS_SSL_VERIFY_NONE );
     mbedtls_ssl_conf_rng( &conf, mbedtls_ctr_drbg_random, &ctr_drbg );
     mbedtls_ssl_conf_dbg( &conf, my_debug, stdout );
+    mbedtls_ssl_conf_handshake_timeout( &conf, 1000, 7000 );
 
     if( ( ret = mbedtls_net_connect( &server_fd, hostname, port, MBEDTLS_NET_PROTO_TCP ) ) != 0 ) {
         memcpy(response_body, "Failed to connect!", MAX_PAGE_SIZE);
@@ -182,7 +190,14 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
 
     printf("Setting hostname\n");
     if( ( ret = mbedtls_ssl_set_hostname( &ssl, hostname ) ) != 0 ) {
-        failExit("Failed to set hostname");
+        memcpy(response_body, "Failed to set hostname", MAX_PAGE_SIZE);
+        mbedtls_x509_crt_free(&cacert);
+        mbedtls_ssl_config_free(&conf);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_entropy_free( &entropy );
+        mbedtls_net_free( &server_fd );
+        return;
     }
     
     mbedtls_ssl_set_bio( &ssl, &server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
@@ -191,23 +206,39 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
     printf("Shaking hands...\n");
     while ( ( ret = mbedtls_ssl_handshake(&ssl) ) != 0 ) {
         if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-            failExit("Failed to shake hands! Error: %i", ret);
+            char retstr[32];
+
+            sprintf(retstr, "%d", ret);
+            char* err = "Failed to shake hands! Error: ";
+            memcpy(response_body, strcat(err, retstr), MAX_PAGE_SIZE);
+            mbedtls_x509_crt_free(&cacert);
+            mbedtls_ssl_config_free(&conf);
+            mbedtls_ctr_drbg_free(&ctr_drbg);
+            mbedtls_ssl_free(&ssl);
+            mbedtls_entropy_free( &entropy );
+            mbedtls_net_free( &server_fd );
+            return;
         }
     }
 
 
-    printf("Sending request\n");
     char request[1024];
     snprintf(request, sizeof(request), "%s://%s%s\r\n", "gemini", hostname, path);
 
     if( mbedtls_ssl_write( &ssl, request, strlen(request) ) == -1) {
-        failExit("Failed to send request\n%s", request);
+        memcpy(response_body, strcat("Failed to send request\n", request), MAX_PAGE_SIZE);
+        mbedtls_x509_crt_free(&cacert);
+        mbedtls_ssl_config_free(&conf);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_entropy_free( &entropy );
+        mbedtls_net_free( &server_fd );
+        return;
     }
 
     char response[128];
     ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
-    printf("%i bytes read\n", ret);
-
+    
     memcpy(response_body, response, strlen(response));
     mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
     
@@ -312,10 +343,52 @@ Line* parseGemtext(const char* text, int* total) {
     return lines;
 }
 
+void parseUrl(const char *url, char *host, char *port, char *path) {
+    char *protocol = "gemini://";
+    char *colon, *slash;
+
+    // Check if the URL starts with a protocol
+    if (strncmp(url, protocol, strlen(protocol)) == 0) {
+        url += strlen(protocol);
+    }
+
+    // Find the first colon (:) to determine if there is a port
+    colon = strchr(url, ':');
+
+    // Find the first slash (/) to determine the end of the host and start of the path
+    slash = strchr(url, '/');
+
+    if (colon) {
+        // Port is specified
+        strncpy(host, url, colon - url);
+        host[colon - url] = '\0';
+        strncpy(port, colon + 1, slash ? slash - colon - 1 : strlen(url) - (colon - url));
+        port[slash ? slash - colon - 1 : strlen(url) - (colon - url)] = '\0';
+    } else {
+        // No port specified
+        if (slash) {
+            strncpy(host, url, slash - url);
+            host[slash - url] = '\0';
+        } else {
+            // No port and no path
+            strcpy(host, url);
+        }
+        strcpy(port, "1965"); // Default port if not specified
+    }
+
+    if (slash) {
+        // Path is specified
+        strcpy(path, slash);
+    } else {
+        // No path specified
+        strcpy(path, "/");
+    }
+}
 
 UiButton uiButtons[MAX_UI_BUTTONS];
 char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n";
 char current_url[1024] = "Enter URL";
+// Create a URL handle
 int main() {
     int ret;
     int scroll = 0;
@@ -424,7 +497,17 @@ int main() {
             memset(uiButtons[0].text, 0, sizeof(urlButton.text));
             memcpy(uiButtons[0].text, current_url, 14);
             
-            getGeminiPage(current_url, "/", "1965", &current_text);
+            char host[256];
+            char port[6];
+            char path[1024];
+            memset(host, 0, sizeof host);
+            memset(port, 0, sizeof port);
+            memset(path, 0, sizeof path);
+            
+
+            parseUrl(current_url, &host, &port, &path);
+
+            getGeminiPage(host, path, port, &current_text);
             scroll = 0;
         }
         else if(uiAction == EXIT) {

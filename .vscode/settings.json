@@ -9,6 +9,7 @@
         "ctr_drbg.h": "c",
         "netdb.h": "c",
         "entropy.h": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "types.h": "c"
     }
 }
