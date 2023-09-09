@@ -50,6 +50,8 @@ enum Action {
     EXIT,
     NEW_PAGE,
     OPEN_LINK,
+    PAGE_BACK,
+    PAGE_FORW,
 };
 
 enum LineType {
@@ -238,9 +240,10 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
     }
 
     char response[256]; //Arbitrary
+    memset(response, 0, sizeof response);
     ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
     
-    memcpy(response_body, strcat(path, response), strlen(response));
+    memcpy(response_body, response, strlen(response));
     mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
     
     mbedtls_x509_crt_free(&cacert);
@@ -290,6 +293,8 @@ void pressAtocontinue() {
 UiButton uiButtons[MAX_UI_BUTTONS];
 int currentUiButtons = 0;
 Link links[1024]; //Arbitrary
+char last_body[MAX_PAGE_SIZE];
+char last_path[1024];
 Line* parseGemtext(const char* text, int* total) {
     Line* lines = NULL;
     int linkCount = 0;
@@ -354,7 +359,7 @@ Line* parseGemtext(const char* text, int* total) {
                 UiButton tmpButton = { 0, 20 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, (BOTTOM_SCREEN_HEIGHT/10), 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK, "Meta" };
                 uiButtons[currentUiButtons++] = tmpButton;
                 memset(uiButtons[currentUiButtons-1].text, 0, sizeof(uiButtons[currentUiButtons-1].text));
-                memcpy(uiButtons[currentUiButtons-1].text, preview, sizeof uiButtons[currentUiButtons-1].text);
+                memcpy(uiButtons[currentUiButtons-1].text, meta, sizeof uiButtons[currentUiButtons-1].text);
                 memset(uiButtons[currentUiButtons-1].meta, 0, sizeof(uiButtons[currentUiButtons-1].meta));
                 memcpy(uiButtons[currentUiButtons-1].meta, meta, sizeof meta);
                 linkCount++;
@@ -438,6 +443,9 @@ bool isRelativePath(const char *str) {
 char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus";
 char current_url[1024] = "Enter URL";
 // Create a URL handle
+char host[256];
+char port[6];
+char path[1024];
 int main() {
     int ret;
     int scroll = 0;
@@ -475,14 +483,13 @@ int main() {
     atexit(socShutdown);
     atexit(C2D_Fini);
     atexit(C3D_Fini);
-    UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE, "Meta" };
-    UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Exit", EXIT, "Meta" };
-    UiButton linkbutton = { 0,  20 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, (BOTTOM_SCREEN_HEIGHT/10) + 3, 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK, "Meta" };
+    UiButton urlButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE, "Meta" };
+    UiButton backButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH / 2, BOTTOM_SCREEN_HEIGHT / 10, 6, clrClear, clrWhite, clrIced, "<=", PAGE_BACK, "Meta" };
     while (aptMainLoop())
     {
         currentUiButtons = 0;
+        uiButtons[currentUiButtons++] = backButton;
         uiButtons[currentUiButtons++] = urlButton;
-        uiButtons[currentUiButtons++] = exitButton;
         hidScanInput();
         u32 kDown = hidKeysDown();
         u32 kHeld = hidKeysHeld();
@@ -495,6 +502,9 @@ int main() {
         }
         if (kHeld & KEY_UP) {
             scroll += 3;
+        }
+        if (kHeld & KEY_B) {
+            memcpy(current_text, last_body, sizeof last_body);
         }
 
         touchPosition touch;
@@ -548,15 +558,15 @@ int main() {
         }
 
         if(uiAction == NEW_PAGE) {
+            memcpy(last_body, current_text, sizeof(current_text));
+            memcpy(last_path, path, sizeof(path));
+
             memset(current_text, 0, sizeof(current_text));
             getKeyboardInput(&current_url);
 
             memset(uiButtons[0].text, 0, sizeof(urlButton.text));
             memcpy(uiButtons[0].text, current_url, 14);
             
-            char host[256];
-            char port[6];
-            char path[1024];
             memset(host, 0, sizeof host);
             memset(port, 0, sizeof port);
             memset(path, 0, sizeof path);
@@ -571,43 +581,33 @@ int main() {
             exit(0);
         }
         else if(uiAction == OPEN_LINK) {
+            memcpy(last_body, current_text, sizeof(current_text));
+            memcpy(last_path, path, sizeof(path));
+            
             memset(current_text, 0, sizeof(current_text));
             if (uiMeta[0] == '/') {
-                // Find the position of the last '/' in current_url
-                char *lastSlash = strrchr(current_url, '/');
-                
-                // If there's a '/' in current_url, replace it with uiMeta
-                if (lastSlash != NULL) {
-                    // Calculate the position of the last '/'
-                    size_t lastSlashPos = lastSlash - current_url;
-                    
-                    // Copy the base URL part from current_url and concatenate uiMeta
-                    strncpy(current_url, current_url, lastSlashPos);
-                    current_url[lastSlashPos] = '\0';  // Null-terminate the string
-                    strcat(current_url, uiMeta);
-                } else {
-                    // No '/' found in current_url, so just replace it with uiMeta
-                    strcpy(current_url, uiMeta);
-                }
+                strcpy(current_url, strcat(host, uiMeta));
+
             } else {
                 // uiMeta is not a relative link, so replace current_url with uiMeta
                 strcpy(current_url, uiMeta);
             }
             
-            memset(uiButtons[0].text, 0, sizeof(urlButton.text));
-            memcpy(uiButtons[0].text, current_url, 14);
+            memset(urlButton.text, 0, sizeof(urlButton.text));
+            memcpy(urlButton.text, uiMeta, 14);
 
-            char host[256];
-            char port[6];
-            char path[1024];
+            //Reuse last host that was set, is this a hack? Idk. Does it work? Idk
             memset(host, 0, sizeof host);
             memset(port, 0, sizeof port);
             memset(path, 0, sizeof path);
 
             parseUrl(current_url, &host, &port, &path);
             getGeminiPage(host, path, port, &current_text);
-
-
+            scroll = 0;
+        }
+        else if(uiAction == PAGE_BACK) {
+            memcpy(current_text, last_body, sizeof last_body);
+            memcpy(path, last_path, sizeof last_path);
         }
 
         C3D_FrameEnd(0);
