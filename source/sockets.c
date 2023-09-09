@@ -49,9 +49,7 @@ enum Action {
     NONE,
     EXIT,
     NEW_PAGE,
-    NEW_TAB,
-    CLOSE_TAB,
-    OPEN_LINK
+    OPEN_LINK,
 };
 
 enum LineType {
@@ -82,8 +80,9 @@ typedef struct {
     u32 background;
     u32 border;
     u32 color;
-    char text[15];
+    char text[65];
     enum Action action;
+    char meta[1024];
 } UiButton;
 
 __attribute__((format(printf, 1, 2)))
@@ -238,10 +237,10 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
         return;
     }
 
-    char response[128];
+    char response[256]; //Arbitrary
     ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
     
-    memcpy(response_body, response, strlen(response));
+    memcpy(response_body, strcat(path, response), strlen(response));
     mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
     
     mbedtls_x509_crt_free(&cacert);
@@ -287,16 +286,23 @@ void pressAtocontinue() {
     }
 }
 
+//GLOBALS
+UiButton uiButtons[MAX_UI_BUTTONS];
+int currentUiButtons = 0;
+Link links[1024]; //Arbitrary
 Line* parseGemtext(const char* text, int* total) {
     Line* lines = NULL;
+    int linkCount = 0;
     const char* delimiter = "\n";
-    char* text_copy = strdup(text); // Make a copy of the input text
+    char* text_copy = strdup(text); //Make a copy of the input text
 
     char *textline = strtok(text_copy, delimiter);
-
+    u32 clrWhite  = C2D_Color32(0xFF, 0xFF, 0xFF, 0xFF);
+    u32 clrLink  = C2D_Color32(0xFF, 0xF4, 0xD2, 0xFF);
+    u32 clrClear = C2D_Color32(0x04, 0x0D, 0x13, 0xFF);
     while (textline != NULL) {
         int type = LINE_PLAIN;
-        // Replace unconventional whitespace with normal spaces
+        //Replace unconventional whitespace with normal spaces
         for (int i = 0; textline[i]; i++) {
             if (isspace((unsigned char)textline[i]) && textline[i] != '\n') {
                 textline[i] = ' ';
@@ -326,7 +332,35 @@ Line* parseGemtext(const char* text, int* total) {
             } else if (strncmp(textline, link_token, strlen(link_token)) == 0) {
                 type = LINE_LINK;
                 textline += strlen(link_token);
+                while (isspace(*textline)) {
+                    textline++;
+                }
+                int i = 0;
+                char meta[1024];
+                memset(meta, 0, sizeof meta);
+                while ( !isspace(textline[i]) && textline[i] != '\n' ) {
+                    meta[i] = textline[i];
+                    i++;
+                }
+                i++;
+                int offset = i;
+                char preview[1024];
+                memset(preview, 0, sizeof preview);
+                while ( i < strlen(textline) ) {
+                    preview[i - strlen(meta) - 1] = textline[i];
+                    i++;
+                }
+
+                UiButton tmpButton = { 0, 20 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, (BOTTOM_SCREEN_HEIGHT/10), 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK, "Meta" };
+                uiButtons[currentUiButtons++] = tmpButton;
+                memset(uiButtons[currentUiButtons-1].text, 0, sizeof(uiButtons[currentUiButtons-1].text));
+                memcpy(uiButtons[currentUiButtons-1].text, preview, sizeof uiButtons[currentUiButtons-1].text);
+                memset(uiButtons[currentUiButtons-1].meta, 0, sizeof(uiButtons[currentUiButtons-1].meta));
+                memcpy(uiButtons[currentUiButtons-1].meta, meta, sizeof meta);
+                linkCount++;
             }
+
+
 
             //Remove any spaces after declaration of special functions
             while (isspace(*textline)) {
@@ -334,19 +368,18 @@ Line* parseGemtext(const char* text, int* total) {
             }
         }
 
-        // Allocate memory for the Line structure
         lines = realloc(lines, (*total + 1) * sizeof(Line));
 
         // Initialize the Line structure and copy the textline
-        lines[*total].text = strdup(textline); // strdup allocates memory for the text
+        lines[*total].text = strdup(textline);
         lines[*total].type = type;
 
-        (*total)++; // Increment the total count
+        (*total)++;
 
         textline = strtok(NULL, delimiter);
     }
 
-    free(text_copy); // Free the copied text
+    free(text_copy);
     return lines;
 }
 
@@ -392,16 +425,24 @@ void parseUrl(const char *url, char *host, char *port, char *path) {
     }
 }
 
-UiButton uiButtons[MAX_UI_BUTTONS];
-char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n";
+bool isRelativePath(const char *str) {
+    // Check if the string doesn't start with "http://" or "https://"
+    if (strncmp(str, "http://", 7) != 0 && strncmp(str, "https://", 8) != 0) {
+        // Check if the string contains a "/" (indicating a path)
+        return strchr(str, '/') != NULL;
+    }
+    return false;
+}
+
+
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus";
 char current_url[1024] = "Enter URL";
-Link links[128];
 // Create a URL handle
 int main() {
     int ret;
     int scroll = 0;
     int linkCount = 0;
-    int currentUiButtons = 0;
+    currentUiButtons = 0;
     romfsInit();
     cfguInit();
     gfxInitDefault();
@@ -434,8 +475,9 @@ int main() {
     atexit(socShutdown);
     atexit(C2D_Fini);
     atexit(C3D_Fini);
-    UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE };
-    UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Exit", EXIT };
+    UiButton urlButton = { 0, 0, 0, BOTTOM_SCREEN_WIDTH/2, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Enter URL", NEW_PAGE, "Meta" };
+    UiButton exitButton = { (BOTTOM_SCREEN_WIDTH / 2) - 3, 0, 0, (BOTTOM_SCREEN_WIDTH/2) + 3, BOTTOM_SCREEN_HEIGHT/10, 6, clrClear, clrWhite, clrIced, "Exit", EXIT, "Meta" };
+    UiButton linkbutton = { 0,  20 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, (BOTTOM_SCREEN_HEIGHT/10) + 3, 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK, "Meta" };
     while (aptMainLoop())
     {
         currentUiButtons = 0;
@@ -464,7 +506,6 @@ int main() {
 
         int lineCount = 0;
         Line *lines = parseGemtext(current_text, &lineCount);
-        Link links[128];
         int i;
         int offset = 0;
         for (i = 0; i < lineCount; i++ ) {
@@ -482,25 +523,11 @@ int main() {
                 offset += 6;
             } else if (lines[i].type == LINE_LINK) {
                 drawText(6, 6 + scroll + offset + 3, 0, .6, clrLink, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-                char* linktext = malloc(strlen(lines[i].text) + 1);
-                char linkbuttontext[14];
-                strcpy(linktext, lines[i].text);
-                Link link = { strtok(linktext, " "), strtok(NULL, "") };
-                free(linktext);
-                if (linkCount < 128) {
-                    UiButton linkbutton = { 0, 16 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, 2*(BOTTOM_SCREEN_HEIGHT/10), 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK };
-                    uiButtons[currentUiButtons++] = linkbutton;
-                    memset(uiButtons[currentUiButtons-1].text, 0, sizeof(urlButton.text));
-                    memcpy(uiButtons[currentUiButtons-1].text, lines[i].text, 14);
-                    links[linkCount++] = link; // Add the link to the array and increment the counter
-                }
                 offset += 3;
             }
             
-
-            
             for (int j = strlen(lines[i].text); j >= 0; j -= 56 ) {
-                offset += 24; //Good offset, looks nice and groups WordWrap lines together nicely
+                offset += 24; //Good offset, looks nice and groups WordWrap lines together
             }
         }
 
@@ -509,10 +536,13 @@ int main() {
         C2D_SceneBegin(bottom);
 
         enum Action uiAction = NONE;
+        char uiMeta[1024];
         for(i = 0; i < currentUiButtons; i++) {
             UiButton button = uiButtons[i];
-            if( (touch.px > button.x) && (touch.py > button.y && touch.py < button.h ) ) {
+            if( (touch.px > button.x) && (touch.py > button.y && touch.py < button.y + button.h ) ) {
                 uiAction = button.action;
+                memset(uiMeta, 0, sizeof(uiMeta));
+                memcpy(uiMeta, button.meta, sizeof(uiMeta));
             }
             drawButton(button, font);
         }
@@ -539,6 +569,45 @@ int main() {
         }
         else if(uiAction == EXIT) {
             exit(0);
+        }
+        else if(uiAction == OPEN_LINK) {
+            memset(current_text, 0, sizeof(current_text));
+            if (uiMeta[0] == '/') {
+                // Find the position of the last '/' in current_url
+                char *lastSlash = strrchr(current_url, '/');
+                
+                // If there's a '/' in current_url, replace it with uiMeta
+                if (lastSlash != NULL) {
+                    // Calculate the position of the last '/'
+                    size_t lastSlashPos = lastSlash - current_url;
+                    
+                    // Copy the base URL part from current_url and concatenate uiMeta
+                    strncpy(current_url, current_url, lastSlashPos);
+                    current_url[lastSlashPos] = '\0';  // Null-terminate the string
+                    strcat(current_url, uiMeta);
+                } else {
+                    // No '/' found in current_url, so just replace it with uiMeta
+                    strcpy(current_url, uiMeta);
+                }
+            } else {
+                // uiMeta is not a relative link, so replace current_url with uiMeta
+                strcpy(current_url, uiMeta);
+            }
+            
+            memset(uiButtons[0].text, 0, sizeof(urlButton.text));
+            memcpy(uiButtons[0].text, current_url, 14);
+
+            char host[256];
+            char port[6];
+            char path[1024];
+            memset(host, 0, sizeof host);
+            memset(port, 0, sizeof port);
+            memset(path, 0, sizeof path);
+
+            parseUrl(current_url, &host, &port, &path);
+            getGeminiPage(host, path, port, &current_text);
+
+
         }
 
         C3D_FrameEnd(0);
