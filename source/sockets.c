@@ -44,6 +44,7 @@
 #define SOC_ALIGN 0x1000
 #define SOC_BUFFERSIZE 0x100000
 static u32 *SOC_buffer = NULL;
+CURL *curl;
 
 enum Action {
     NONE,
@@ -239,13 +240,38 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
         return;
     }
 
-    char response[256]; //Arbitrary
+    char* input_token = "10 ";
+    char response[255]; //Arbitrary
     memset(response, 0, sizeof response);
-    ret = mbedtls_ssl_read( &ssl, response, sizeof(response) );
+    mbedtls_ssl_read( &ssl, response, sizeof(response) );
+    if (strncmp(response, input_token, strlen(input_token)) == 0) {
+        char query[1024];
+        memset(query, 0, sizeof query);
+        char reason[256];
+        memcpy(reason, response + strlen(input_token) , sizeof response);
+        reason[strlen(reason) - 1] = '\0';
+        
+        char *pathEnd = strchr(path, '?');
+        if (pathEnd != NULL) {
+            *pathEnd = '\0'; // Null-terminate the path before the '?' character.
+        }
+
+        getKeyboardInput(&query, &reason);
+        
+        char* output = curl_easy_escape(curl, query, strlen(query));
+        char reply[512 + 1024];
+        memset(reply, 0, sizeof reply);
+
+        snprintf(reply, sizeof(reply), "=> %s%s?%s Send Input\n%s", hostname, path, output, query);
     
-    memcpy(response_body, response, strlen(response));
-    mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
-    
+        curl_free(output);
+
+        memcpy(response_body, reply, strlen(reply));
+    } else {
+        memcpy(response_body, response, strlen(response));
+        mbedtls_ssl_read( &ssl, response_body+strlen(response), MAX_PAGE_SIZE );
+    }
+
     mbedtls_x509_crt_free(&cacert);
     mbedtls_ssl_config_free(&conf);
     mbedtls_ctr_drbg_free(&ctr_drbg);
@@ -255,15 +281,17 @@ void getGeminiPage(char* hostname, char* path, char* port, char response_body[MA
     return;
 }
 
-void getKeyboardInput(char output[1024]) {
+void getKeyboardInput(char output[1024], char prompt[256]) {
     bool in_keyboard = true;
     static SwkbdState swkbd;
-    static char keyboardBuffer[1024];
+    char keyboardBuffer[1024];
+    memset(keyboardBuffer, 0, sizeof keyboardBuffer);
     SwkbdButton button = SWKBD_BUTTON_NONE;
     static SwkbdStatusData swkbdStatus;
     swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
+    swkbdSetFeatures(&swkbd, SWKBD_MULTILINE);
     swkbdSetInitialText(&swkbd, keyboardBuffer);
-    swkbdSetHintText(&swkbd, "A gemini url, without \"gemini://\"");
+    swkbdSetHintText(&swkbd, prompt);
     static bool reload = false;
     swkbdSetStatusData(&swkbd, &swkbdStatus, reload, true);
     reload = true;
@@ -446,8 +474,8 @@ bool isRelativePath(const char *str) {
     return false;
 }
 
-
-char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus\n=>voidspace.blog/testpage.gmi";
+//The ROOPHLOCH link is just bc I haven't implemented identity yet so I just made a random fuckin link
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus\n=>voidspace.blog/fjoijggigjfasf14324dsfs ROOPHLOCH Write";
 char current_url[1024] = "Enter URL";
 // Create a URL handle
 char host[256];
@@ -458,6 +486,7 @@ int main() {
     int scroll = 0;
     int linkCount = 0;
     currentUiButtons = 0;
+    curl = curl_easy_init();
     romfsInit();
     cfguInit();
     gfxInitDefault();
@@ -500,9 +529,11 @@ int main() {
         hidScanInput();
         u32 kDown = hidKeysDown();
         u32 kHeld = hidKeysHeld();
-		if (kDown & KEY_START)
+		if (kDown & KEY_START) {
+            curl_easy_cleanup(curl);
             break; //TODO replace this with a proper menu screen
-        
+        }
+
         //Process button inputs
         if (kHeld & KEY_DOWN) {
             scroll -= 3;
@@ -574,7 +605,7 @@ int main() {
             memcpy(last_path, path, sizeof(path));
 
             memset(current_text, 0, sizeof(current_text));
-            getKeyboardInput(&current_url);
+            getKeyboardInput(&current_url, "Enter a URL");
 
             memset(uiButtons[0].text, 0, sizeof(urlButton.text));
             memcpy(uiButtons[0].text, current_url, 14);
