@@ -351,15 +351,22 @@ Line* parseGemtext(const char* text, int* total) {
                 int offset = i;
                 char preview[1024];
                 memset(preview, 0, sizeof preview);
+                bool hasCaption = false;
                 while ( i < strlen(textline) ) {
+                    if(isalnum(textline[i])) {
+                        hasCaption = true;
+                    }
                     preview[i - strlen(meta) - 1] = textline[i];
                     i++;
+                }
+                if(!hasCaption) {
+                    memcpy(preview, meta, sizeof meta);
                 }
 
                 UiButton tmpButton = { 0, 20 + (linkCount * (BOTTOM_SCREEN_HEIGHT / 10)), 0, BOTTOM_SCREEN_WIDTH, (BOTTOM_SCREEN_HEIGHT/10), 6, clrClear, clrWhite, clrLink, "Link", OPEN_LINK, "Meta" };
                 uiButtons[currentUiButtons++] = tmpButton;
                 memset(uiButtons[currentUiButtons-1].text, 0, sizeof(uiButtons[currentUiButtons-1].text));
-                memcpy(uiButtons[currentUiButtons-1].text, meta, sizeof uiButtons[currentUiButtons-1].text);
+                memcpy(uiButtons[currentUiButtons-1].text, preview, sizeof uiButtons[currentUiButtons-1].text);
                 memset(uiButtons[currentUiButtons-1].meta, 0, sizeof(uiButtons[currentUiButtons-1].meta));
                 memcpy(uiButtons[currentUiButtons-1].meta, meta, sizeof meta);
                 linkCount++;
@@ -440,7 +447,7 @@ bool isRelativePath(const char *str) {
 }
 
 
-char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus";
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus\n=>voidspace.blog/testpage.gmi";
 char current_url[1024] = "Enter URL";
 // Create a URL handle
 char host[256];
@@ -503,9 +510,6 @@ int main() {
         if (kHeld & KEY_UP) {
             scroll += 3;
         }
-        if (kHeld & KEY_B) {
-            memcpy(current_text, last_body, sizeof last_body);
-        }
 
         touchPosition touch;
         hidTouchRead( &touch );
@@ -522,22 +526,30 @@ int main() {
             
             if(lines[i].type == LINE_PLAIN) {
                 drawText(6, 6 + scroll + offset, 0, .6, clrIced, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                for (int j = strlen(lines[i].text); j >= 0; j -= 56 ) {
+                    offset += 22; //Good offset, looks nice and groups WordWrap lines together
+                }
             } else if (lines[i].type == LINE_H1) {
                 drawText(6, 6 + scroll + offset, 0, 1, clrGreen, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-                offset += 12;
+                for (int j = strlen(lines[i].text); j >= 0; j -= 33 ) {
+                    offset += 36; //Good offset, looks nice and groups WordWrap lines together
+                }
             } else if (lines[i].type == LINE_H2) {
                 drawText(6, 6 + scroll + offset, 0, .8, clrRed, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-                offset += 9;
+                for (int j = strlen(lines[i].text); j >= 0; j -= 42 ) {
+                    offset += 28; //Good offset, looks nice and groups WordWrap lines together
+                }
             } else if (lines[i].type == LINE_H3) {
                 drawText(6, 6 + scroll + offset, 0, .7, clrBlue, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-                offset += 6;
+                for (int j = strlen(lines[i].text); j >= 0; j -= 47 ) {
+                    offset += 26; //Good offset, looks nice and groups WordWrap lines together
+                }
             } else if (lines[i].type == LINE_LINK) {
-                drawText(6, 6 + scroll + offset + 3, 0, .6, clrLink, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
-                offset += 3;
-            }
-            
-            for (int j = strlen(lines[i].text); j >= 0; j -= 56 ) {
-                offset += 24; //Good offset, looks nice and groups WordWrap lines together
+                drawText(6, 6 + scroll + offset + 6, 0, .6, clrLink, lines[i].text, C2D_WithColor | C2D_WordWrap, font);
+                for (int j = strlen(lines[i].text) - 55; j > 0; j -= 55) {
+                    offset += 24; //Good offset, looks nice and groups WordWrap lines together
+                }
+                offset += 24;
             }
         }
 
@@ -608,6 +620,7 @@ int main() {
         else if(uiAction == PAGE_BACK) {
             memcpy(current_text, last_body, sizeof last_body);
             memcpy(path, last_path, sizeof last_path);
+            scroll = 0;
         }
 
         C3D_FrameEnd(0);
