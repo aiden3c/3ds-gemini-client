@@ -475,7 +475,7 @@ bool isRelativePath(const char *str) {
 }
 
 //The ROOPHLOCH link is just bc I haven't implemented identity yet so I just made a random fuckin link
-char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus\n=>voidspace.blog/fjoijggigjfasf14324dsfs ROOPHLOCH Write";
+char current_text[MAX_PAGE_SIZE] = "3DS Gemini Client\nBy abraxas@hidden.nexus\n=> hidden.nexus Visit the Hidden Nexus";
 char current_url[1024] = "Enter URL";
 // Create a URL handle
 char host[256];
